@@ -38,7 +38,7 @@ const checkMailbox = function (mailboxConfig) {
  * @param {{user: string, password: string, host: string, port: number, tls: boolean}[]} mailboxes
  * @param {{checkPeriod: number}} options
  */
-mailChecker.start = (mailboxes, options) => {
+mailChecker.start = (mailboxes, options = {}) => {
     const checkPeriod = options.checkPeriod || appConfig.checkPeriod;
     try {
         logger.verbose('Начинаем проверять почту...');
