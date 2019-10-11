@@ -1,0 +1,12 @@
+{
+    "name": "mailchecker",
+    "version": "0.0.2",
+    "private": true,
+    "main": "index.js",
+    "dependencies": {
+        "mailparser": "^2.7.1",
+        "node-json-db": "^1.0.1",
+        "node-pop3": "^0.1.0",
+        "winston": "^3.2.1"
+    }
+}

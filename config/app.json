@@ -1,0 +1,4 @@
+{
+    "messageChunkSize": 5,
+    "checkPeriod": 10000
+}
