@@ -115,7 +115,7 @@ function Mailbox(config) {
         const rawMessage = await fetchMessage(retrieveMsgId);
         const parsedMessage = await simpleParser(rawMessage);
         await processedMessage.add(uniqueMsgId, config.user);
-        logger.verbose(`Cообщение ${retrieveMsgId} ${uniqueMsgId} ящика ${config.user} обработано`);
+        logger.verbose(`Cообщение ${retrieveMsgId} ${uniqueMsgId} ящика ${config.user} прочитано`);
         return parsedMessage;
     }
 }

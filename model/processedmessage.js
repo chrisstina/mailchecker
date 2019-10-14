@@ -38,7 +38,7 @@ ProcessedMessage.prototype.findOne = async function (messageId, mailbox) {
  */
 ProcessedMessage.prototype.add = async function(messageId, mailbox) {
     await self.storage.set(getProcessedMessageKey(messageId, mailbox), messageId);
-    logger.verbose('Сохранили сообщение #' + messageId + '/' + mailbox + ' в обработанных');
+    logger.verbose('Сохранили сообщение #' + messageId + '/' + mailbox + ' как прочитанное');
 };
 
 function getProcessedMessageKey(messageId, mailbox) {
