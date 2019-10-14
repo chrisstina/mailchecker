@@ -1,8 +1,7 @@
 const assert = require('assert');
 const EventEmitter = require('events').EventEmitter;
 
-const appConfig = require('./config/app'),
-    logger = require('./service/logger')('MAIL'),
+const logger = require('./service/logger')('MAIL'),
     Mailbox = require('./service/mailbox');
 
 // trust all certificates
@@ -13,8 +12,9 @@ const mailChecker = new EventEmitter;
 /**
  * Проверяет почтовый ящик. Генерирует событие data на получение новых писем
  * @param {{user: string, password: string, host: string, port: number, tls: boolean}} mailboxConfig
+ * @param {Config} appConfig
  */
-const checkMailbox = function (mailboxConfig) {
+const checkMailbox = function (mailboxConfig, appConfig) {
 
     assert(mailboxConfig.user !== undefined, 'Missing mailbox user');
     assert(mailboxConfig.password, 'Missing mailbox password');
@@ -22,7 +22,7 @@ const checkMailbox = function (mailboxConfig) {
     assert(mailboxConfig.port, 'Missing mailbox port');
 
     logger.info('Подключаемся к ' + mailboxConfig.user);
-    const mailbox = new Mailbox(mailboxConfig);
+    const mailbox = new Mailbox(mailboxConfig, appConfig);
     mailbox.listNewMessages()
         .then(mailbox.parseNewMessages) // результат парсинга - массив готовых для работы объект сообщения
         .then(newMessages => mailChecker.emit('data', newMessages))
@@ -36,20 +36,21 @@ const checkMailbox = function (mailboxConfig) {
  * Запускает процесс проверки и обработки настроенных почтовых ящиков с определенной периодичностью
  *
  * @param {{user: string, password: string, host: string, port: number, tls: boolean}[]} mailboxes
- * @param {{checkPeriod: number}} options
+ * @param {{checkPeriod: number, messageChunkSize: number, storage: {}} options
  */
 mailChecker.start = (mailboxes, options = {}) => {
-    const checkPeriod = options.checkPeriod || appConfig.checkPeriod;
+    const config = require('./service/config')(options);
+
     try {
         logger.verbose('Начинаем проверять почту...');
         mailboxes.map((mailbox, idx) => {
             setTimeout(
                 () => {
                     setInterval(() => {
-                        checkMailbox(mailbox)
-                    }, checkPeriod);
+                        checkMailbox(mailbox, config)
+                    }, config.checkPeriod);
                 },
-                idx * (checkPeriod / 2)
+                idx * (config.checkPeriod / 2)
             );
         });
     } catch (err) {

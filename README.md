@@ -67,11 +67,9 @@ The `start` method accepts an array of objects containing mailbox credentials.
 You may pass the frequency of checking mailbox in `ms` in the `checkPeriod` parameter.
 
 
-#### App config
+#### Config
 
-The `config/app.json` file contains default options for `checkPeriod` and `messageChunkSize`.
-`checkPeriod` indicates the frequency of checking email. 
-`messageChunkSize` indicates how many new messages will be processed in parallel.  
+TBA
 
 ## Basic usage
 

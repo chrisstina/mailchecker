@@ -6,7 +6,7 @@ const AbstractStorage = require('./abstract-storage');
 const DBNAME = "data/mailchecker";
 const TABLENAME = "/processedMessages";
 
-class BasicNodeStorage extends AbstractStorage {
+class JsonDBStorage extends AbstractStorage {
 
     constructor(db) {
         super();
@@ -39,9 +39,9 @@ function generateKey(key) {
 module.exports = {
     /**
      * @todo вынести выше в фабрику
-     * @return {BasicNodeStorage}
+     * @return {JsonDBStorage}
      */
     getStorage: function () {
-        return new BasicNodeStorage();
+        return new JsonDBStorage();
     }
 };

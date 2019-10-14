@@ -8,7 +8,7 @@ let self;
  */
 const ProcessedMessage = function () {
     self = this;
-    this.storage = require('./../storage-adapter/basic-node-storage').getStorage();
+    this.storage = require('../storage-adapter/json-db-storage').getStorage();
 };
 
 ProcessedMessage.prototype.findAll = async function (messageIds, mailbox) {
