@@ -4,6 +4,7 @@
   "private": true,
   "main": "index.js",
   "dependencies": {
+    "knex": "^0.19.5",
     "mailparser": "^2.7.1",
     "node-json-db": "^1.0.1",
     "node-pop3": "^0.1.0",

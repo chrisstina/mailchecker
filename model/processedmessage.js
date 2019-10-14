@@ -4,11 +4,12 @@ let self;
 
 /**
  * @todo переделать на репозиторий, или как-то еще по-умному
+ * @param {AbstractStorage} storage
  * @constructor
  */
-const ProcessedMessage = function () {
+const ProcessedMessage = function (storage) {
     self = this;
-    this.storage = require('../storage-adapter/json-db-storage').getStorage();
+    this.storage = storage;
 };
 
 ProcessedMessage.prototype.findAll = async function (messageIds, mailbox) {
@@ -45,4 +46,6 @@ function getProcessedMessageKey(messageId, mailbox) {
     return `${mailbox}-${messageId}`;
 }
 
-module.exports = new ProcessedMessage();
+module.exports = function (storage) {
+    return new ProcessedMessage(storage);
+};

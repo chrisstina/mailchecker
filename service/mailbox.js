@@ -1,7 +1,6 @@
 const simpleParser = require('mailparser').simpleParser,
     Pop3Command = require('node-pop3');
 
-const processedMessage = require('./../model/processedmessage');
 const logger = require('./../service/logger')('MAILBOX');
 
 /**
@@ -11,6 +10,9 @@ const logger = require('./../service/logger')('MAILBOX');
  * @constructor
  */
 function Mailbox(config, appConfig) {
+
+    const processedMessage = new require('./../model/processedmessage')(appConfig.getStorageModule().getStorage());
+
     const getPOP3Command = function () {
         return new Pop3Command({
             host: config.host,
