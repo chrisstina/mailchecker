@@ -15,6 +15,19 @@ const ProcessedMessage = function (storageConfig) {
     this.tableName = storageConfig.tableName;
 };
 
+ProcessedMessage.prototype.migrate = async function () {
+    knex.schema.hasTable(config.storage.tableName).then(function(exists) {
+        if (!exists) {
+            return knex.schema.createTable('config.storage.tableName', function(t) {
+                t.increments('id').primary();
+                t.string('first_name', 100);
+                t.string('last_name', 100);
+                t.text('bio');
+            });
+        }
+    });
+};
+
 /**
  * Выбирает все существующие записи из списка полученных сообщений
  *

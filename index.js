@@ -2,7 +2,8 @@ const assert = require('assert');
 const EventEmitter = require('events').EventEmitter;
 
 const logger = require('./service/logger')('MAIL'),
-    Mailbox = require('./service/mailbox');
+    Mailbox = require('./service/mailbox'),
+    migrate = require('./service/migration');
 
 // trust all certificates
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -42,10 +43,12 @@ const checkMailbox = function (mailboxConfig, appConfig) {
  * @param {{user: string, password: string, host: string, port: number, tls: boolean}[]} mailboxes
  * @param {{checkPeriod: number, messageChunkSize: number, storage: {}} options
  */
-mailChecker.start = (mailboxes, options = {}) => {
+mailChecker.start = async (mailboxes, options = {}) => {
     const config = require('./service/config')(options);
 
     try {
+        await migrate(config); // run migration is table does not exist
+
         logger.verbose('Mail client has been started...');
         mailboxes.map((mailbox, idx) => {
             setTimeout(
