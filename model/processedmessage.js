@@ -3,48 +3,45 @@ const logger = require('./../service/logger')('MODEL');
 let self;
 
 /**
- * @todo переделать на репозиторий, или как-то еще по-умному
- * @param {AbstractStorage} storage
+ * @param {Config.storage} storageConfig
  * @constructor
  */
-const ProcessedMessage = function (storage) {
+const ProcessedMessage = function (storageConfig) {
     self = this;
-    this.storage = storage;
-};
-
-ProcessedMessage.prototype.findAll = async function (messageIds, mailbox) {
-   throw Error('Not implemented');
+    /**
+     * @type {Knex.QueryBuilder<TRecord, DeferredKeySelection<TRecord, never>[]> | Knex<any, unknown[]>}
+     */
+    this.storage = require('knex')(storageConfig.db);
+    this.tableName = storageConfig.tableName;
 };
 
 /**
  * Выбирает все существующие записи из списка полученных сообщений
- * @param messageId
- * @param mailbox
- * @return {Promise<*>}
+ *
+ * @param {string[]} messageIds
+ * @param {string} mailbox
+ * @return {*|string|QueryBuilder<TRecord extends {}, TResult>}
  */
-ProcessedMessage.prototype.findOne = async function (messageId, mailbox) {
-    try {
-        return await self.storage.getByKey(getProcessedMessageKey(messageId, mailbox));
-    } catch (e) {
-        logger.error(e.toString());
-        return null;
-    }
+ProcessedMessage.prototype.listAll = async function (messageIds, mailbox) {
+    return await this.storage.select('message_id').from(this.tableName)
+        .where('mailbox', mailbox)
+        .whereIn('message_id', messageIds);
 };
 
 /**
  * Добавляет сообщение в список обработанных в БД.
- * @param messageId
- * @param mailbox
- * @returns {Promise<void>}
+ * @param {string} messageId
+ * @param {string} mailbox
+ * @return {Promise<T>}
  */
 ProcessedMessage.prototype.add = async function(messageId, mailbox) {
-    await self.storage.set(getProcessedMessageKey(messageId, mailbox), messageId);
-    logger.verbose('Сохранили сообщение #' + messageId + '/' + mailbox + ' как прочитанное');
+    try {
+        await this.storage(this.tableName).insert([{'message_id': messageId, 'mailbox': mailbox, 'date': new Date()}]);
+        logger.verbose(`Message has been saved #${messageId}/${mailbox} as read`);
+    } catch (e) {
+        logger.error(`Failed to save the message #${messageId}/${mailbox} as read: ${e.stack}`);
+    }
 };
-
-function getProcessedMessageKey(messageId, mailbox) {
-    return `${mailbox}-${messageId}`;
-}
 
 module.exports = function (storage) {
     return new ProcessedMessage(storage);

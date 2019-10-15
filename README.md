@@ -7,14 +7,13 @@ parses a chunk of messages and fires an event when new message is found.
 The module checks mailboxes once in an indicated period of time.
 
 - The module adapts [POP3 client](https://github.com/lianxh/node-pop3) to work with mailboxes.
-- Processed message ids are stored in an embedded [JSON database](https://github.com/Belphemur/node-json-db) so emails don't get parsed twice.
+- Processed message ids are stored in an [knex-compatible database](http://knexjs.org) so emails don't get parsed twice.
 - Message parsing is done by the [Nodemailer mailparser](https://nodemailer.com/extras/mailparser/) module. 
 
 ## Usage
 
 In order to start receiving messages from a mailbox you need to call the `start` method of the `mailchecker` module
 along with the mailbox credentials.
-
 
 Each mailbox you pass will get checked with an indicated frequency, default is `10000ms`. 
 The number of new messages returned in each iteration is limited to 5 by default.
@@ -47,6 +46,35 @@ Parsed message object has the following properties
 - attachments is an array of attachments.
 
 ### Options
+
+Options contain configurations for knex module as well as message chunk size and mailbox check period.
+
+An example of options passed to the module:
+```{
+        messageChunkSize: 5,
+        checkPeriod: 5000,
+        storage: {
+            type: 'knex',
+            tableName: 'processedmessage',
+            db: {
+                client: 'mysql',
+                connection: {
+                    database: 'mailchecker',
+                    user: 'mailchecker',
+                    password: 'mailchecker'
+                },
+                pool: {
+                    min: 1,
+                    max: 2
+                },
+                migrations: {
+                    tableName: 'knex_migrations'
+                },
+                debug: false,
+            }
+        }
+    }
+```
 
 #### Mailboxes
 

@@ -25,10 +25,14 @@ const checkMailbox = function (mailboxConfig, appConfig) {
     const mailbox = new Mailbox(mailboxConfig, appConfig);
     mailbox.listNewMessages()
         .then(mailbox.parseNewMessages) // результат парсинга - массив готовых для работы объект сообщения
-        .then(newMessages => mailChecker.emit('data', newMessages))
-        .catch(err => {
-            logger.error(err);
-            mailChecker.emit('error', err);
+        .then(newMessages => {
+            if (newMessages.length > 0) {
+                mailChecker.emit('data', newMessages);
+            }
+        })
+        .catch(e => {
+            logger.error(`Failed to check ${mailboxConfig.user}: ${e.stack}`);
+            mailChecker.emit('error', e);
         });
 };
 
@@ -42,7 +46,7 @@ mailChecker.start = (mailboxes, options = {}) => {
     const config = require('./service/config')(options);
 
     try {
-        logger.verbose('Начинаем проверять почту...');
+        logger.verbose('Mail client has been started...');
         mailboxes.map((mailbox, idx) => {
             setTimeout(
                 () => {
@@ -53,9 +57,9 @@ mailChecker.start = (mailboxes, options = {}) => {
                 idx * (config.checkPeriod / 2)
             );
         });
-    } catch (err) {
-        logger.error('Не удалось запустить почтовый клиент, ошибка: ' + err);
-        mailChecker.emit('error', err);
+    } catch (e) {
+        logger.error('Could not start mail client: ' + e.stack);
+        mailChecker.emit('error', e);
     }
 };
 

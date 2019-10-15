@@ -6,6 +6,7 @@
   "dependencies": {
     "knex": "^0.19.5",
     "mailparser": "^2.7.1",
+    "mysql": "^2.17.1",
     "node-json-db": "^1.0.1",
     "node-pop3": "^0.1.0",
     "winston": "^3.2.1"
