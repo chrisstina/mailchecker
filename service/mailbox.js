@@ -80,7 +80,7 @@ function Mailbox(mailboxConfig, appConfig) {
                 return list;
             })
             .then(list => filterNew(list, mailboxConfig.user))
-            .catch((err) => {
+            .catch((e) => {
                 pop3.command('QUIT');
                 logger.error(`Failed to list messages via POP3: ${e.stack}`);
             });
