@@ -1,4 +1,3 @@
-const assert = require('assert');
 const EventEmitter = require('events').EventEmitter;
 
 const logger = require('./service/logger')('MAIL'),
@@ -12,18 +11,10 @@ const mailChecker = new EventEmitter;
 
 /**
  * Проверяет почтовый ящик. Генерирует событие data на получение новых писем
- * @param {{user: string, password: string, host: string, port: number, tls: boolean}} mailboxConfig
- * @param {Config} appConfig
+ * @param {Mailbox} mailbox
  */
-const checkMailbox = function (mailboxConfig, appConfig) {
+const checkMailbox = function (mailbox) {
 
-    assert(mailboxConfig.user !== undefined, 'Missing mailbox user');
-    assert(mailboxConfig.password, 'Missing mailbox password');
-    assert(mailboxConfig.host, 'Missing mailbox host');
-    assert(mailboxConfig.port, 'Missing mailbox port');
-
-    logger.info('Подключаемся к ' + mailboxConfig.user);
-    const mailbox = new Mailbox(mailboxConfig, appConfig);
     mailbox.listNewMessages()
         .then(mailbox.parseNewMessages) // результат парсинга - массив готовых для работы объект сообщения
         .then(newMessages => {
@@ -32,7 +23,7 @@ const checkMailbox = function (mailboxConfig, appConfig) {
             }
         })
         .catch(e => {
-            logger.error(`Failed to check ${mailboxConfig.user}: ${e.stack}`);
+            logger.error(`Failed to check: ${e.stack}`);
             mailChecker.emit('error', e);
         });
 };
@@ -50,11 +41,14 @@ mailChecker.start = async (mailboxes, options = {}) => {
         await migrate(config); // run migration is table does not exist
 
         logger.verbose('Mail client has been started...');
-        mailboxes.map((mailbox, idx) => {
+
+        mailboxes.map((mailboxConfig, idx) => {
+            const mailbox = new Mailbox(mailboxConfig, config);
+            logger.info(`Connected to ${mailboxConfig.user}`);
             setTimeout(
                 () => {
                     setInterval(() => {
-                        checkMailbox(mailbox, config)
+                        checkMailbox(mailbox)
                     }, config.checkPeriod);
                 },
                 idx * (config.checkPeriod / 2)

@@ -1,3 +1,5 @@
+const assert = require('assert');
+
 const simpleParser = require('mailparser').simpleParser,
     Pop3Command = require('node-pop3');
 
@@ -5,11 +7,16 @@ const logger = require('./../service/logger')('MAILBOX');
 
 /**
  *
- * @param mailboxConfig
+ * @param {{user: string, password: string, host: string, port: number, tls: boolean}}  mailboxConfig
  * @param {Config} appConfig
  * @constructor
  */
 function Mailbox(mailboxConfig, appConfig) {
+
+    assert(mailboxConfig.user !== undefined, 'Missing mailbox user');
+    assert(mailboxConfig.password, 'Missing mailbox password');
+    assert(mailboxConfig.host, 'Missing mailbox host');
+    assert(mailboxConfig.port, 'Missing mailbox port');
 
     const processedMessage = new require('./../model/processedmessage')(appConfig.storage);
 
