@@ -50,7 +50,7 @@ mailChecker.start = async (mailboxes) => {
     assert(mailChecker.config, 'Missing options, use setConfig() method to set mailchecker options')
 
     try {
-        await migrate(this.config); // run migration is table does not exist
+        await migrate(mailChecker.config); // run migration is table does not exist
 
         logger.verbose('Mail client has been started...');
 
