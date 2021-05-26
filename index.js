@@ -1,13 +1,26 @@
+const assert = require('assert')
 const EventEmitter = require('events').EventEmitter;
 
 const logger = require('./service/logger')('MAIL'),
     Mailbox = require('./service/mailbox'),
-    migrate = require('./service/migration');
+    migrate = require('./service/migration'),
+    Config = require('./service/config')
 
 // trust all certificates
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
-const mailChecker = new EventEmitter;
+const mailChecker = new EventEmitter
+/**
+ * @type {Config|null}
+ */
+mailChecker.config = null
+
+/**
+ * @param {{checkPeriod:number, messageChunkSize: number, storage:{}}} options
+ */
+mailChecker.setConfig = function (options) {
+    this.config = new Config(options)
+}
 
 /**
  * Проверяет почтовый ящик. Генерирует событие data на получение новых писем
@@ -32,26 +45,25 @@ const checkMailbox = function (mailbox) {
  * Запускает процесс проверки и обработки настроенных почтовых ящиков с определенной периодичностью
  *
  * @param {{user: string, password: string, host: string, port: number, tls: boolean}[]} mailboxes
- * @param {{checkPeriod: number, messageChunkSize: number, storage: {}} options
  */
-mailChecker.start = async (mailboxes, options = {}) => {
-    const config = require('./service/config')(options);
+mailChecker.start = async (mailboxes) => {
+    assert(this.config !== null, 'Missing options, use setConfig() method to set mailchecker options')
 
     try {
-        await migrate(config); // run migration is table does not exist
+        await migrate(this.config); // run migration is table does not exist
 
         logger.verbose('Mail client has been started...');
 
         mailboxes.map((mailboxConfig, idx) => {
-            const mailbox = new Mailbox(mailboxConfig, config);
+            const mailbox = new Mailbox(mailboxConfig, this.config);
             logger.info(`Connected to ${mailboxConfig.user}`);
             setTimeout(
                 () => {
                     setInterval(() => {
                         checkMailbox(mailbox)
-                    }, config.checkPeriod);
+                    }, this.config.checkPeriod);
                 },
-                idx * (config.checkPeriod / 2)
+                idx * (this.config.checkPeriod / 2)
             );
         });
     } catch (e) {
@@ -59,5 +71,21 @@ mailChecker.start = async (mailboxes, options = {}) => {
         mailChecker.emit('error', e);
     }
 };
+
+/**
+ * Убирает сообщения в указанном диапазоне дат из прочитанных. При следуюзем прогоне эти сообщения будут интерпретированы как новые.
+ */
+mailChecker.unprocess = async function (mailboxes, dateStart, dateEnd) {
+    logger.info(`Unprocessing messages ${dateStart} - ${dateEnd}`)
+    mailboxes.map(async (mailboxConfig, idx) => {
+        const mailbox = new Mailbox(mailboxConfig, this.config)
+        try {
+            const unprocessedCount = await mailbox.unprocessMessages(dateStart, dateEnd)
+            mailChecker.emit('unprocessed', unprocessedCount);
+        } catch (e) {
+            mailChecker.emit('error', e);
+        }
+    });
+}
 
 module.exports = mailChecker;

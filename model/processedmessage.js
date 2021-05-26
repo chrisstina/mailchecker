@@ -31,21 +31,48 @@ ProcessedMessage.prototype.migrate = async function () {
 /**
  * Выбирает все существующие записи из списка полученных сообщений
  *
- * @param {string[]} messageIds
  * @param {string} mailbox
- * @return {*|string|QueryBuilder<TRecord extends {}, TResult>}
+ * @param {string[]} messageIds
+ * @return {Knex.QueryBuilder<TRecord, TResult>}
  */
-ProcessedMessage.prototype.listAll = async function (messageIds, mailbox) {
-    return await this.storage.select('message_id').from(this.tableName)
+ProcessedMessage.prototype.listByMessageIds = async function (mailbox, messageIds) {
+    return this.storage.select('message_id').from(this.tableName)
         .where('mailbox', mailbox)
         .whereIn('message_id', messageIds);
-};
+}
+
+/**
+ * Выбирает все записи в указанном диапазоне дат
+ * @param {string} mailbox
+ * @param {Date} dateFrom
+ * @param {Date|null} dateTo
+ * @return {Knex.QueryBuilder<TRecord, TResult>}
+ */
+ProcessedMessage.prototype.listByDateRange = async function (mailbox, dateFrom, dateTo = null) {
+    return this.storage.select('message_id').from(this.tableName)
+        .where('mailbox', mailbox)
+        .andWhereBetween('date', [dateFrom, dateTo])
+}
+
+/**
+ * Удаляет все записи в указанном диапазоне дат
+ * @param {string} mailbox
+ * @param {Date} dateFrom
+ * @param {Date} dateTo
+ * @return {Knex.QueryBuilder<TRecord, number>}
+ */
+ProcessedMessage.prototype.deleteByDateRange = async function (mailbox, dateFrom, dateTo) {
+    return this.storage.from(this.tableName)
+        .where('mailbox', mailbox)
+        .andWhereBetween('date', [dateFrom, dateTo])
+        .delete()
+}
 
 /**
  * Добавляет сообщение в список обработанных в БД.
  * @param {string} messageId
  * @param {string} mailbox
- * @return {Promise<T>}
+ * @return {Promise<void>}
  */
 ProcessedMessage.prototype.add = async function(messageId, mailbox) {
     try {
@@ -54,7 +81,8 @@ ProcessedMessage.prototype.add = async function(messageId, mailbox) {
     } catch (e) {
         logger.error(`Failed to save the message #${messageId}/${mailbox} as read: ${e.stack}`);
     }
-};
+}
+
 
 module.exports = function (storage) {
     return new ProcessedMessage(storage);

@@ -61,7 +61,8 @@ function Mailbox(mailboxConfig, appConfig) {
         const messageIds = allReceivedMessages.map((id) => { return id[popIdx]; });
 
         try {
-            const savedMessages = await processedMessage.listAll(messageIds, mailbox);
+            // @todo - не выбирать все существующие, а искать каждое сообщение в processed
+            const savedMessages = await processedMessage.listByMessageIds(mailbox, messageIds);
             const processedIds = savedMessages.map((row) => row['message_id']);
 
             return allReceivedMessages
@@ -107,6 +108,18 @@ function Mailbox(mailboxConfig, appConfig) {
         return Promise.all(chunkOfMessages.map(mid => parseMessage(mid.retrieveID, mid.uniqueID)))
             .catch(e => logger.error(`Failed to parse messages: ${e.stack}`));
     };
+
+    /**
+     * Помечает сообщения в ящике как непрочитанные
+     * @param dateStart
+     * @param dateEnd
+     * @return {Promise<void>}
+     */
+    this.unprocessMessages = async function (dateStart, dateEnd) {
+        const messagesUnprocessed = await processedMessage.listByDateRange(mailboxConfig.user, dateStart, dateEnd)
+        await processedMessage.deleteByDateRange(mailboxConfig.user, dateStart, dateEnd)
+        return messagesUnprocessed.length
+    }
 
     /**
      * Берет письмо из ящика и возвращает в нужном формате.
