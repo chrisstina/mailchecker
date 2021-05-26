@@ -47,7 +47,7 @@ const checkMailbox = function (mailbox) {
  * @param {{user: string, password: string, host: string, port: number, tls: boolean}[]} mailboxes
  */
 mailChecker.start = async (mailboxes) => {
-    assert(this.config !== null, 'Missing options, use setConfig() method to set mailchecker options')
+    assert(mailChecker.config, 'Missing options, use setConfig() method to set mailchecker options')
 
     try {
         await migrate(this.config); // run migration is table does not exist
@@ -55,15 +55,15 @@ mailChecker.start = async (mailboxes) => {
         logger.verbose('Mail client has been started...');
 
         mailboxes.map((mailboxConfig, idx) => {
-            const mailbox = new Mailbox(mailboxConfig, this.config);
+            const mailbox = new Mailbox(mailboxConfig, mailChecker.config);
             logger.info(`Connected to ${mailboxConfig.user}`);
             setTimeout(
                 () => {
                     setInterval(() => {
                         checkMailbox(mailbox)
-                    }, this.config.checkPeriod);
+                    }, mailChecker.config.checkPeriod);
                 },
-                idx * (this.config.checkPeriod / 2)
+                idx * (mailChecker.config.checkPeriod / 2)
             );
         });
     } catch (e) {
@@ -78,7 +78,7 @@ mailChecker.start = async (mailboxes) => {
 mailChecker.unprocess = async function (mailboxes, dateStart, dateEnd) {
     logger.info(`Unprocessing messages ${dateStart} - ${dateEnd}`)
     mailboxes.map(async (mailboxConfig, idx) => {
-        const mailbox = new Mailbox(mailboxConfig, this.config)
+        const mailbox = new Mailbox(mailboxConfig, mailChecker.config)
         try {
             const unprocessedCount = await mailbox.unprocessMessages(dateStart, dateEnd)
             mailChecker.emit('unprocessed', unprocessedCount);
