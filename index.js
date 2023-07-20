@@ -28,7 +28,8 @@ mailChecker.setConfig = function (options) {
  */
 const checkMailbox = function (mailbox) {
   mailbox
-    .listNewMessages()
+    .openMailbox()
+    .then(mailbox.listNewMessages)
     .then(mailbox.parseNewMessages) // результат парсинга - массив готовых для работы объект сообщения
     .then((newMessages) => {
       if (newMessages.length > 0) {
@@ -38,7 +39,8 @@ const checkMailbox = function (mailbox) {
     .catch((e) => {
       logger.error(`Failed to check: ${e.stack}`);
       mailChecker.emit("error", e);
-    });
+    })
+    .finally(mailbox.closeMailbox);
 };
 
 /**
@@ -59,7 +61,6 @@ mailChecker.start = async (mailboxes) => {
 
     mailboxes.map((mailboxConfig, idx) => {
       const mailbox = new Mailbox(mailboxConfig, mailChecker.config);
-      logger.info(`Connected to ${mailboxConfig.user}`);
       setTimeout(
         () => {
           setInterval(() => {

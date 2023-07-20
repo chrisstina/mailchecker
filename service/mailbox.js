@@ -1,8 +1,7 @@
 const assert = require("assert");
-
-const simpleParser = require("mailparser").simpleParser,
-  Pop3Command = require("node-pop3");
-
+const Pop3Command = require("node-pop3");
+const { simpleParser } = require("mailparser");
+const ProcessedMessageModel = require("./../model/processedmessage");
 const logger = require("./../service/logger")("MAILBOX");
 
 /**
@@ -17,11 +16,7 @@ function Mailbox(mailboxConfig, appConfig) {
   assert(mailboxConfig.host, "Missing mailbox host");
   assert(mailboxConfig.port, "Missing mailbox port");
 
-  const processedMessage = new require("./../model/processedmessage")(
-    appConfig.storage,
-  );
-
-  const getPOP3Command = function () {
+  function createPOP3Command() {
     return new Pop3Command({
       host: mailboxConfig.host,
       port: mailboxConfig.port,
@@ -29,28 +24,14 @@ function Mailbox(mailboxConfig, appConfig) {
       password: mailboxConfig.password,
       debug: true,
     });
-  };
+  }
 
-  /**
-   * Цепочка промисов, получаем RAW сообщение
-   *
-   * @param messageId
-   * @returns {Promise<*>}
-   */
-  const fetchMessage = function (messageId) {
-    const pop3 = getPOP3Command();
+  function createProcessedMessageModel() {
+    return new ProcessedMessageModel(appConfig.storage);
+  }
 
-    return pop3
-      .RETR(messageId)
-      .then((stream) => {
-        pop3.QUIT();
-        return stream;
-      })
-      .catch((e) => {
-        logger.error(`Could not fetch a message via POP3: ${e.stack}`);
-        return pop3.QUIT();
-      });
-  };
+  const processedMessageModel = createProcessedMessageModel();
+  const pop3 = createPOP3Command();
 
   /**
    * Из всего списка сообщений в ящике возвращает те, которые не были обработаны
@@ -66,7 +47,7 @@ function Mailbox(mailboxConfig, appConfig) {
 
     try {
       // @todo - не выбирать все существующие, а искать каждое сообщение в processed
-      const savedMessages = await processedMessage.listByMessageIds(
+      const savedMessages = await processedMessageModel.listByMessageIds(
         mailbox,
         messageIds,
       );
@@ -84,20 +65,71 @@ function Mailbox(mailboxConfig, appConfig) {
   };
 
   /**
+   * Берет письмо из ящика и возвращает в нужном формате.
+   * Добавляет письмо в список обработанных
+   * @param retrieveMsgId
+   * @param uniqueMsgId
+   * @return {Promise<*>}
+   */
+  const parseMessage = async function (retrieveMsgId, uniqueMsgId) {
+    logger.verbose(
+      `Parsing message ${retrieveMsgId} ${uniqueMsgId} of ${mailboxConfig.user}`,
+    );
+
+    const rawMessage = await fetchMessage(retrieveMsgId);
+    const parsedMessage = await simpleParser(rawMessage);
+    await processedMessageModel.add(uniqueMsgId, mailboxConfig.user);
+    logger.verbose(
+      `The message ${retrieveMsgId} ${uniqueMsgId} of ${mailboxConfig.user} has been parsed`,
+    );
+    return parsedMessage;
+  };
+
+  /**
+   * Цепочка промисов, получаем RAW сообщение
+   *
+   * @param messageId
+   * @returns {Promise<*>}
+   */
+  const fetchMessage = function (messageId) {
+    return pop3
+      .RETR(messageId)
+      .then((stream) => {
+        return stream;
+      })
+      .catch((e) => {
+        logger.error(`Could not fetch a message via POP3: ${e.stack}`);
+      });
+  };
+
+  this.openMailbox = function () {
+    logger.info(`Connecting to ${mailboxConfig.user}`);
+    return pop3
+      .connect()
+      .then((connectInfo) => {
+        if (!connectInfo) {
+          logger.error(`Could not connect to ${mailboxConfig.user}`);
+        } else {
+          logger.info(connectInfo);
+        }
+      })
+      .catch((e) => logger.error(e));
+  };
+
+  this.closeMailbox = function () {
+    logger.info(`Closing ${mailboxConfig.user}`);
+    return pop3.command("QUIT").then(([quitInfo]) => logger.info(quitInfo));
+  };
+
+  /**
    * Получает список сообщений из ящика, которые еще не были обработаны
    * @return {Promise<*>}
    */
   this.listNewMessages = function () {
-    const pop3 = getPOP3Command();
     return pop3
       .UIDL()
-      .then((list) => {
-        pop3.QUIT();
-        return list;
-      })
       .then((list) => filterNew(list, mailboxConfig.user))
       .catch((e) => {
-        pop3.command("QUIT");
         logger.error(`Failed to list messages via POP3: ${e.stack}`);
       });
   };
@@ -110,6 +142,10 @@ function Mailbox(mailboxConfig, appConfig) {
    * @return {Promise<*>}
    */
   this.parseNewMessages = function (messageIds) {
+    if (!messageIds) {
+      logger.warn("No messages to parse");
+      return Promise.resolve([]);
+    }
     // Не обрабатываем сразу все, а кусочками. Следующая партия будет обработана при следующей итерации.
     let chunkOfMessages = messageIds.slice(0, appConfig.messageChunkSize);
     // парсим новые письма параллельно
@@ -125,38 +161,17 @@ function Mailbox(mailboxConfig, appConfig) {
    * @return {Promise<void>}
    */
   this.unprocessMessages = async function (dateStart, dateEnd) {
-    const messagesUnprocessed = await processedMessage.listByDateRange(
+    const messagesUnprocessed = await processedMessageModel.listByDateRange(
       mailboxConfig.user,
       dateStart,
       dateEnd,
     );
-    await processedMessage.deleteByDateRange(
+    await processedMessageModel.deleteByDateRange(
       mailboxConfig.user,
       dateStart,
       dateEnd,
     );
     return messagesUnprocessed.length;
-  };
-
-  /**
-   * Берет письмо из ящика и возвращает в нужном формате.
-   * Добавляет письмо в список обработанных
-   * @param retrieveMsgId
-   * @param uniqueMsgId
-   * @return {Promise<*>}
-   */
-  const parseMessage = async function (retrieveMsgId, uniqueMsgId) {
-    logger.verbose(
-      `Parsing message ${retrieveMsgId} ${uniqueMsgId} of ${mailboxConfig.user}`,
-    );
-
-    const rawMessage = await fetchMessage(retrieveMsgId);
-    const parsedMessage = await simpleParser(rawMessage);
-    await processedMessage.add(uniqueMsgId, mailboxConfig.user);
-    logger.verbose(
-      `The message ${retrieveMsgId} ${uniqueMsgId} of ${mailboxConfig.user} has been parsed`,
-    );
-    return parsedMessage;
   };
 }
 
