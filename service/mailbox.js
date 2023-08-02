@@ -102,23 +102,9 @@ function Mailbox(mailboxConfig, appConfig) {
       });
   };
 
-  this.openMailbox = function () {
-    logger.info(`Connecting to ${mailboxConfig.user}`);
-    return pop3
-      .connect()
-      .then((connectInfo) => {
-        if (!connectInfo) {
-          logger.error(`Could not connect to ${mailboxConfig.user}`);
-        } else {
-          logger.info(connectInfo);
-        }
-      })
-      .catch((e) => logger.error(e));
-  };
-
   this.closeMailbox = function () {
     logger.info(`Closing ${mailboxConfig.user}`);
-    return pop3.command("QUIT").then(([quitInfo]) => logger.info(quitInfo));
+    return pop3.QUIT().then((quitInfo) => logger.info(quitInfo));
   };
 
   /**
@@ -126,6 +112,7 @@ function Mailbox(mailboxConfig, appConfig) {
    * @return {Promise<*>}
    */
   this.listNewMessages = function () {
+    logger.info(`Connecting to ${mailboxConfig.user}`);
     return pop3
       .UIDL()
       .then((list) => filterNew(list, mailboxConfig.user))

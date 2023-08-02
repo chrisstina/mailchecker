@@ -28,8 +28,7 @@ mailChecker.setConfig = function (options) {
  */
 const checkMailbox = function (mailbox) {
   mailbox
-    .openMailbox()
-    .then(mailbox.listNewMessages)
+    .listNewMessages()
     .then(mailbox.parseNewMessages) // результат парсинга - массив готовых для работы объект сообщения
     .then((newMessages) => {
       if (newMessages.length > 0) {
