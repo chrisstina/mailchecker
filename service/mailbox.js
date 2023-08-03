@@ -69,14 +69,13 @@ function Mailbox(mailboxConfig, appConfig) {
    * Добавляет письмо в список обработанных
    * @param retrieveMsgId
    * @param uniqueMsgId
-   * @return {Promise<*>}
+   * @return {Promise<{headers:[],body:string}>}
    */
-  const parseMessage = async function (retrieveMsgId, uniqueMsgId) {
+  const fetchAndParseMessage = async function (retrieveMsgId, uniqueMsgId) {
+    const rawMessage = await fetchMessage(retrieveMsgId);
     logger.verbose(
       `Parsing message ${retrieveMsgId} ${uniqueMsgId} of ${mailboxConfig.user}`,
     );
-
-    const rawMessage = await fetchMessage(retrieveMsgId);
     const parsedMessage = await simpleParser(rawMessage);
     await processedMessageModel.add(uniqueMsgId, mailboxConfig.user);
     logger.verbose(
@@ -92,6 +91,9 @@ function Mailbox(mailboxConfig, appConfig) {
    * @returns {Promise<*>}
    */
   const fetchMessage = function (messageId) {
+    logger.verbose(
+      `Fetching message ${messageId} of ${mailboxConfig.user} via POP3`,
+    );
     return pop3
       .RETR(messageId)
       .then((stream) => {
@@ -104,7 +106,9 @@ function Mailbox(mailboxConfig, appConfig) {
 
   this.closeMailbox = function () {
     logger.info(`Closing ${mailboxConfig.user}`);
-    return pop3.QUIT().then((quitInfo) => logger.info(quitInfo));
+    return pop3
+      .QUIT()
+      .then((quitInfo) => logger.info("QUIT result: " + quitInfo));
   };
 
   /**
@@ -126,7 +130,7 @@ function Mailbox(mailboxConfig, appConfig) {
    * возвращает список распарсенных объектов почтовых сообщений
    *
    * @param {{retrieveID: string, uniqueID: string}[]} messageIds - массив новых сообщений
-   * @return {Promise<*>}
+   * @return {Promise<{headers: [], body: string}[]>}
    */
   this.parseNewMessages = function (messageIds) {
     if (!messageIds) {
@@ -134,10 +138,12 @@ function Mailbox(mailboxConfig, appConfig) {
       return Promise.resolve([]);
     }
     // Не обрабатываем сразу все, а кусочками. Следующая партия будет обработана при следующей итерации.
-    let chunkOfMessages = messageIds.slice(0, appConfig.messageChunkSize);
+    let chunkOfMessageIds = messageIds.slice(0, appConfig.messageChunkSize);
     // парсим новые письма параллельно
     return Promise.all(
-      chunkOfMessages.map((mid) => parseMessage(mid.retrieveID, mid.uniqueID)),
+      chunkOfMessageIds.map((mid) =>
+        fetchAndParseMessage(mid.retrieveID, mid.uniqueID),
+      ),
     ).catch((e) => logger.error(`Failed to parse messages: ${e.stack}`));
   };
 
